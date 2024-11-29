@@ -6,7 +6,6 @@ export const useWebAuthn = () => {
            typeof window.PublicKeyCredential === 'function';
   });
 
-  // Add registration function
   const register = async (username) => {
     if (!isSupported) {
       throw new Error('WebAuthn is not supported in this browser');
@@ -22,11 +21,15 @@ export const useWebAuthn = () => {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
+      // Get the domain without protocol
+      const domain = window.location.hostname;
+      
       const publicKeyCredentialCreationOptions = {
         challenge,
         rp: {
           name: "Cycles Pocket",
-          id: window.location.hostname
+          // For Netlify sites, use the full domain
+          id: domain
         },
         user: {
           id: new Uint8Array(16), // Should be unique per user
@@ -39,7 +42,8 @@ export const useWebAuthn = () => {
         ],
         authenticatorSelection: {
           authenticatorAttachment: "platform",
-          userVerification: "required"
+          userVerification: "required",
+          residentKey: "required"
         },
         timeout: 60000
       };
@@ -48,6 +52,10 @@ export const useWebAuthn = () => {
         publicKey: publicKeyCredentialCreationOptions
       });
 
+      if (!credential) {
+        throw new Error('Failed to create credential');
+      }
+
       return credential;
     } catch (error) {
       console.error('Registration failed:', error);
@@ -55,7 +63,6 @@ export const useWebAuthn = () => {
     }
   };
 
-  // Update authenticate function with better error handling
   const authenticate = async () => {
     if (!isSupported) {
       throw new Error('WebAuthn is not supported in this browser');
@@ -70,9 +77,11 @@ export const useWebAuthn = () => {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
+      const domain = window.location.hostname;
+
       const publicKeyCredentialRequestOptions = {
         challenge,
-        rpId: window.location.hostname,
+        rpId: domain,
         timeout: 60000,
         userVerification: "required"
       };
@@ -80,6 +89,10 @@ export const useWebAuthn = () => {
       const credential = await navigator.credentials.get({
         publicKey: publicKeyCredentialRequestOptions
       });
+
+      if (!credential) {
+        throw new Error('Authentication failed');
+      }
 
       return credential;
     } catch (error) {

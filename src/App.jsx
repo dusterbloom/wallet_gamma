@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Screen } from './components/Screen.jsx';
+import { LoginScreen } from './screens/LoginScreen.jsx';
+import { SignupScreen } from './screens/SignupScreen.jsx';
 import { WalletScreen } from './screens/WalletScreen.jsx';
 import { AmountScreen } from './screens/AmountScreen.jsx';
 import { NoteScreen } from './screens/NoteScreen.jsx';
@@ -16,11 +18,11 @@ import { useGroups } from './hooks/useGroups.js';
 import { Celebrations } from './components/Celebrations.jsx';
 
 function App() {
-  const [activeScreen, setActiveScreen] = useState('wallet');
+  const [activeScreen, setActiveScreen] = useState('welcome');
   const [transactionType, setTransactionType] = useState('send');
   const [transactionAmount, setTransactionAmount] = useState(null);
   const [transactionNote, setTransactionNote] = useState('');
-  
+
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [expense, setExpense] = useState(null);
   const [selectedBill, setSelectedBill] = useState(null);
@@ -153,6 +155,43 @@ function App() {
 
   return (
     <div className="relative w-full h-full min-h-screen bg-black text-white">
+
+      <Screen isActive={activeScreen === 'welcome'}>
+        <div className="h-full flex flex-col items-center justify-center p-4">
+          <h1 className="text-3xl font-bold mb-8">Welcome to Cycles</h1>
+          <div className="w-full space-y-4">
+            <button
+              onClick={() => navigate('signup')}
+              className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium"
+            >
+              Create Account
+            </button>
+            <button
+              onClick={() => navigate('login')}
+              className="w-full py-4 bg-zinc-900 rounded-xl text-white"
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </Screen>
+
+      <Screen isActive={activeScreen === 'login'}>
+        <LoginScreen
+          onComplete={() => {
+            navigate('wallet');
+          }}
+        />
+      </Screen>
+
+      <Screen isActive={activeScreen === 'signup'}>
+        <SignupScreen
+          onComplete={() => {
+            // Handle signup completion
+            navigate('wallet');
+          }}
+        />
+      </Screen>
       <Screen isActive={activeScreen === 'wallet'}>
         <WalletScreen onNavigate={handleContinue} />
       </Screen>
