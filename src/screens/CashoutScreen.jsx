@@ -139,26 +139,28 @@ export const CashoutScreen = ({ balance, onBack, onComplete }) => {
           </div>
         )}
 
-        <div className="mt-auto px-6 pb-8">
-          <div className="grid grid-cols-3 gap-3">
-            {keys.map((row, rowIndex) => (
-              <React.Fragment key={rowIndex}>
-                {row.map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => key === '←' ? handleDelete() : handleKeyPress(key)}
-                    className="h-14 rounded-full bg-zinc-900 text-xl font-medium 
-                             transition-colors duration-200
-                             hover:bg-zinc-800 active:bg-zinc-700"
-                  >
-                    {key}
-                  </button>
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
+         {/* Edit: Adjust the keypad container to anchor it to the bottom and make it larger */}
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-black border-t border-gray-700">
+        <div className="grid grid-cols-3 gap-4">
+          {keys.map((row, rowIndex) => (
+            <React.Fragment key={rowIndex}>
+              {row.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => key === '←' ? handleDelete() : handleKeyPress(key)}
+                  // Edit: Adjust the button classes to increase size and match the AmountScreen
+                  className="h-16 w-full rounded-full bg-zinc-800 text-3xl font-medium 
+                           transition-colors duration-200
+                           hover:bg-zinc-700 active:bg-zinc-600 text-white"
+                >
+                  {key}
+                </button>
+              ))}
+            </React.Fragment>
+          ))}
         </div>
       </div>
+    </div>
     </div>
   );
 };
