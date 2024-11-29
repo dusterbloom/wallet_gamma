@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+  color: white;
+  font-family: 'Inter', -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.keypad-btn {
+  @apply h-14 rounded-full text-xl font-medium relative overflow-hidden
+         transition-all duration-200;
+  background: rgba(38, 38, 38, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.keypad-btn:hover {
+  @apply transform scale-105;
+  background: rgba(64, 64, 64, 0.8);
+}
+
+.keypad-btn:active {
+  @apply transform scale-95;
+}
+
+.screen-transition {
+  @apply fixed inset-0 transition-all duration-500;
+}
+
+.screen-transition-enter {
+  @apply translate-x-full opacity-0;
+}
+
+.screen-transition-enter-active {
+  @apply translate-x-0 opacity-100;
+}
+
+.screen-transition-exit {
+  @apply translate-x-0 opacity-100;
+}
+
+.screen-transition-exit-active {
+  @apply -translate-x-full opacity-0;
+}
