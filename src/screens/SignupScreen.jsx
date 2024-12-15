@@ -8,7 +8,11 @@ export const SignupScreen = ({ onComplete }) => {
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const webAuthn = useWebAuthn();
-  const { setupNewWallet } = useCosmWallet();
+  const { 
+    setupNewWallet, 
+    encryptPrivateKey, 
+    storeEncryptedWallet 
+  } = useCosmWallet();
 
   const handleSubmit = async () => {
     try {

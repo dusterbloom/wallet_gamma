@@ -8,7 +8,11 @@ export const LoginScreen = ({ onComplete }) => {
   const [username, setUsername] = useState('');
   const [status, setStatus] = useState('');
   const webAuthn = useWebAuthn();
-  const { loadExistingWallet } = useCosmWallet();
+  const { 
+    loadExistingWallet, 
+    decryptPrivateKey, 
+    getEncryptedWallet 
+  } = useCosmWallet();
 
   const handleLogin = async () => {
     try {

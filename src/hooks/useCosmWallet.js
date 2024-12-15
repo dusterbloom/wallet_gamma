@@ -61,7 +61,76 @@ export const useCosmWallet = () => {
     }
   };
 
-  // ... (other utility functions remain the same)
+  const encryptPrivateKey = async (privateKeyBytes, authKey) => {
+    try {
+      console.log('Starting encryption...');
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      
+      const encryptedData = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        authKey,
+        privateKeyBytes
+      );
+
+      console.log('Encryption successful');
+      return {
+        encrypted: new Uint8Array(encryptedData),
+        iv
+      };
+    } catch (error) {
+      console.error('Encryption failed:', error);
+      throw new Error('Failed to encrypt wallet data: ' + error.message);
+    }
+  };
+
+  const decryptPrivateKey = async (encryptedData, iv, authKey) => {
+    try {
+      console.log('Starting decryption...');
+      console.log('Encrypted data size:', encryptedData.length);
+      console.log('IV size:', iv.length);
+
+      const decryptedData = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        authKey,
+        encryptedData
+      );
+
+      console.log('Decryption successful');
+      return new TextDecoder().decode(decryptedData);
+    } catch (error) {
+      console.error('Decryption failed:', error);
+      throw new Error('Failed to decrypt wallet data: ' + error.message);
+    }
+  };
+
+  const storeEncryptedWallet = async (username, encryptedData) => {
+    try {
+      console.log('Storing wallet for user:', username);
+      const db = await initializeDB();
+      await db.put(STORE_NAME, encryptedData, username);
+      console.log('Wallet stored successfully');
+    } catch (error) {
+      console.error('Failed to store wallet:', error);
+      throw new Error('Failed to store wallet securely');
+    }
+  };
+
+  const getEncryptedWallet = async (username) => {
+    try {
+      console.log('Retrieving wallet for user:', username);
+      const db = await initializeDB();
+      const walletData = await db.get(STORE_NAME, username);
+      if (!walletData) {
+        console.log('No wallet found for user:', username);
+        return null;
+      }
+      console.log('Wallet retrieved successfully');
+      return walletData;
+    } catch (error) {
+      console.error('Failed to retrieve wallet:', error);
+      throw new Error('Failed to retrieve wallet data');
+    }
+  };
 
   const setupNewWallet = async (username, authKey) => {
     try {
@@ -195,12 +264,24 @@ export const useCosmWallet = () => {
   };
 
   return {
+    // State
     address,
     balance: '0',
-    mnemonic, // Expose mnemonic in the hook return
+    mnemonic,
+    isConnecting,
+
+    // Core wallet functions
     setupNewWallet,
     loadExistingWallet,
     exportWallet,
-    importWallet
+    importWallet,
+
+    // Utility functions that need to be exposed
+    getEncryptedWallet,
+    encryptPrivateKey,
+    decryptPrivateKey,
+    generateNewWallet,
+    storeEncryptedWallet,
+    initializeDB
   };
 };
