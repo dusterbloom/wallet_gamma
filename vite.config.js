@@ -13,5 +13,13 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['buffer']
+  },
+  server: {
+    headers: {
+      'Permissions-Policy': 'publickey-credentials-create=*, publickey-credentials-get=*',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    },
+    https: true
   }
 })

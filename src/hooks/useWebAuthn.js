@@ -1,43 +1,58 @@
 import { useState } from 'react';
-import { Buffer as BufferPolyfill } from 'buffer/';
 
 export const useWebAuthn = () => {
   const [isSupported] = useState(() => {
-    return window.PublicKeyCredential && 
-           typeof window.PublicKeyCredential === 'function';
+    try {
+      return window.isSecureContext && 
+             window.PublicKeyCredential && 
+             typeof window.PublicKeyCredential === 'function';
+    } catch (e) {
+      return false;
+    }
   });
 
   const generateAuthKey = async (credential) => {
-    // Generate a deterministic key from the credential ID and raw ID
-    const rawId = BufferPolyfill.from(credential.rawId).toString('base64');
-    const credId = credential.id;
-    const combinedData = `${rawId}:${credId}`;
-    
-    // Hash the combined data to get a consistent 256-bit key
-    const encoder = new TextEncoder();
-    const data = encoder.encode(combinedData);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    
-    // Convert hash to base64 string
-    return BufferPolyfill.from(hash).toString('base64');
+    try {
+      // Combine credential data for consistent key generation
+      const rawId = new Uint8Array(credential.rawId);
+      const idBytes = new TextEncoder().encode(credential.id);
+      
+      // Combine arrays
+      const combined = new Uint8Array(rawId.length + idBytes.length);
+      combined.set(rawId);
+      combined.set(idBytes, rawId.length);
+      
+      // Generate SHA-256 hash
+      const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+      
+      // Create encryption key from hash
+      const key = await crypto.subtle.importKey(
+        'raw',
+        hashBuffer,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+      
+      return key;
+    } catch (error) {
+      console.error('Failed to generate auth key:', error);
+      throw new Error('Failed to generate secure key');
+    }
   };
 
   const register = async (username) => {
     if (!isSupported) {
-      throw new Error('WebAuthn is not supported in this browser');
+      throw new Error('WebAuthn is not supported in this browser or requires HTTPS');
     }
 
     try {
-      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-      if (!available) {
-        throw new Error('No platform authenticator available');
-      }
-
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      const domain = window.location.hostname || 'localhost';
+      // Generate challenge
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
       
+      // Get domain, fallback to localhost for development
+      const domain = window.location.hostname || 'localhost';
+
       const publicKeyCredentialCreationOptions = {
         challenge,
         rp: {
@@ -50,16 +65,18 @@ export const useWebAuthn = () => {
           displayName: username
         },
         pubKeyCredParams: [
-          { type: "public-key", alg: -7 },
-          { type: "public-key", alg: -257 }
+          { type: "public-key", alg: -7 },  // ES256
+          { type: "public-key", alg: -257 } // RS256
         ],
         authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required",
-          residentKey: "required"
+          userVerification: "preferred",
+          residentKey: "preferred"
         },
+        attestation: "none",
         timeout: 60000
       };
+
+      console.log('Attempting to create credential with options:', publicKeyCredentialCreationOptions);
 
       const credential = await navigator.credentials.create({
         publicKey: publicKeyCredentialCreationOptions
@@ -69,7 +86,8 @@ export const useWebAuthn = () => {
         throw new Error('Failed to create credential');
       }
 
-      // Generate a proper 256-bit key from the credential
+      console.log('Credential created successfully:', credential);
+
       const authKey = await generateAuthKey(credential);
       return { credential, authKey };
     } catch (error) {
@@ -80,26 +98,22 @@ export const useWebAuthn = () => {
 
   const authenticate = async () => {
     if (!isSupported) {
-      throw new Error('WebAuthn is not supported in this browser');
+      throw new Error('WebAuthn is not supported in this browser or requires HTTPS');
     }
 
     try {
-      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-      if (!available) {
-        throw new Error('No platform authenticator available');
-      }
-
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
       const domain = window.location.hostname || 'localhost';
 
       const publicKeyCredentialRequestOptions = {
         challenge,
         rpId: domain,
         timeout: 60000,
-        userVerification: "required"
+        userVerification: "preferred",
+        attestation: "none"
       };
+
+      console.log('Attempting to get credential with options:', publicKeyCredentialRequestOptions);
 
       const credential = await navigator.credentials.get({
         publicKey: publicKeyCredentialRequestOptions
@@ -109,7 +123,8 @@ export const useWebAuthn = () => {
         throw new Error('Authentication failed');
       }
 
-      // Generate the same 256-bit key from the credential
+      console.log('Authentication successful:', credential);
+
       const authKey = await generateAuthKey(credential);
       return { credential, authKey };
     } catch (error) {

@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { SigningStargateClient } from '@cosmjs/stargate';
 import { openDB } from 'idb';
-import { Buffer as BufferPolyfill } from 'buffer/';
 
 const DB_NAME = 'cosmos_wallet';
 const STORE_NAME = 'encrypted_keys';
@@ -23,55 +22,47 @@ export const useCosmWallet = () => {
   const generateNewWallet = async () => {
     const wallet = await DirectSecp256k1HdWallet.generate(24);
     const [account] = await wallet.getAccounts();
+    const serialized = await wallet.serialize();
+    
     return {
       wallet,
       address: account.address,
-      privateKey: BufferPolyfill.from(JSON.stringify(wallet.serialize())).toString('base64'),
+      privateKey: new TextEncoder().encode(JSON.stringify(serialized))
     };
   };
 
-  const encryptPrivateKey = async (privateKey, authKey) => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(privateKey);
-    
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(authKey),
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt']
-    );
+  const encryptPrivateKey = async (privateKeyBytes, authKey) => {
+    try {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encryptedData = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        authKey,
+        privateKeyBytes
+      );
 
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encryptedData = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      data
-    );
-
-    return {
-      encrypted: BufferPolyfill.from(encryptedData).toString('base64'),
-      iv: BufferPolyfill.from(iv).toString('base64'),
-    };
+      return {
+        encrypted: new Uint8Array(encryptedData),
+        iv
+      };
+    } catch (error) {
+      console.error('Encryption failed:', error);
+      throw new Error('Failed to encrypt wallet data');
+    }
   };
 
   const decryptPrivateKey = async (encryptedData, iv, authKey) => {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(authKey),
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    );
+    try {
+      const decryptedData = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        authKey,
+        encryptedData
+      );
 
-    const decryptedData = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: BufferPolyfill.from(iv, 'base64') },
-      key,
-      BufferPolyfill.from(encryptedData, 'base64')
-    );
-
-    return new TextDecoder().decode(decryptedData);
+      return new TextDecoder().decode(decryptedData);
+    } catch (error) {
+      console.error('Decryption failed:', error);
+      throw new Error('Failed to decrypt wallet data');
+    }
   };
 
   const storeEncryptedWallet = async (username, encryptedData) => {
@@ -111,15 +102,14 @@ export const useCosmWallet = () => {
         throw new Error('No wallet found for this user');
       }
 
-      const privateKey = await decryptPrivateKey(
+      const decrypted = await decryptPrivateKey(
         encrypted.encrypted,
         encrypted.iv,
         authKey
       );
 
       const wallet = await DirectSecp256k1HdWallet.deserialize(
-        JSON.parse(BufferPolyfill.from(privateKey, 'base64').toString()),
-        'cosmos'
+        JSON.parse(decrypted)
       );
 
       const [account] = await wallet.getAccounts();

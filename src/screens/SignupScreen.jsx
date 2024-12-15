@@ -6,13 +6,13 @@ import { useCosmWallet } from '../hooks/useCosmWallet.js';
 export const SignupScreen = ({ onComplete }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  const { register } = useWebAuthn();
+  const webAuthn = useWebAuthn();
   const { setupNewWallet } = useCosmWallet();
 
   const handleSubmit = async () => {
     try {
       // First register with WebAuthn
-      const { authKey } = await register(username);
+      const { authKey } = await webAuthn.register(username);
       
       // Then setup the Cosmos wallet
       const { success, address, error } = await setupNewWallet(username, authKey);

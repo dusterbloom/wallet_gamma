@@ -5,13 +5,13 @@ import { useCosmWallet } from '../hooks/useCosmWallet.js';
 
 export const LoginScreen = ({ onComplete }) => {
   const [error, setError] = useState('');
-  const { authenticate } = useWebAuthn();
+  const webAuthn = useWebAuthn();
   const { loadExistingWallet } = useCosmWallet();
 
   const handleLogin = async () => {
     try {
-      const { authKey } = await authenticate();
-      const { success, address, error } = await loadExistingWallet(username, authKey);
+      const { authKey } = await webAuthn.authenticate();
+      const { success, address, error } = await loadExistingWallet('user', authKey);
       
       if (!success) {
         throw new Error(error || 'Failed to load wallet');
