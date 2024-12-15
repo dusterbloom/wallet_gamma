@@ -154,7 +154,7 @@ export const useCosmWallet = () => {
       setAddress(address);
       setMnemonic(newMnemonic); // Set mnemonic in state
       
-      console.log('Wallet setup complete');
+      console.log('Wallet setup complete with mnemonic:', !!newMnemonic);
       return { success: true, address };
     } catch (error) {
       console.error('Failed to setup wallet:', error);
@@ -190,9 +190,16 @@ export const useCosmWallet = () => {
       const [account] = await wallet.getAccounts();
       setClient(wallet);
       setAddress(account.address);
-      setMnemonic(walletData.mnemonic); // Set mnemonic from stored data
+
+      // Make sure we have the mnemonic from the stored data
+      if (!walletData.mnemonic) {
+        throw new Error('No mnemonic found in stored wallet data');
+      }
       
-      console.log('Wallet loaded successfully');
+      console.log('Setting mnemonic from stored data');
+      setMnemonic(walletData.mnemonic);
+      
+      console.log('Wallet loaded successfully with mnemonic:', !!walletData.mnemonic);
       return { success: true, address: account.address };
     } catch (error) {
       console.error('Failed to load wallet:', error);
@@ -203,20 +210,15 @@ export const useCosmWallet = () => {
   const exportWallet = async () => {
     try {
       console.log('Starting wallet export...');
+      console.log('Current mnemonic state:', !!mnemonic);
+      
       if (!mnemonic) {
         console.error('No mnemonic found in state');
         throw new Error('No mnemonic available. Please load wallet first.');
       }
 
-      // Create QR data
-      const qrData = JSON.stringify({
-        type: 'cosmos-wallet-backup',
-        phrase: mnemonic,
-        timestamp: Date.now()
-      });
-
       console.log('Wallet export successful');
-      return { phrase: mnemonic, qrData };
+      return { phrase: mnemonic };
     } catch (error) {
       console.error('Export failed:', error);
       throw new Error('Failed to export wallet: ' + error.message);
@@ -255,7 +257,7 @@ export const useCosmWallet = () => {
       setAddress(account.address);
       setMnemonic(phrase); // Set mnemonic in state
 
-      console.log('Wallet import successful');
+      console.log('Wallet import successful with mnemonic:', !!phrase);
       return { success: true, address: account.address };
     } catch (error) {
       console.error('Import failed:', error);
