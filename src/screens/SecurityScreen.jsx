@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from '../components/Screen.jsx';
 import { useCosmWallet } from '../hooks/useCosmWallet';
 import { useWebAuthn } from '../hooks/useWebAuthn';
@@ -9,8 +9,24 @@ export const SecurityScreen = ({ onBack }) => {
   const [error, setError] = useState('');
   const [username, setUsername] = useState('');
   const [inputPhrase, setInputPhrase] = useState('');
-  const { address, mnemonic, importWallet } = useCosmWallet();
+  const { address, mnemonic, getCurrentWallet, importWallet } = useCosmWallet();
   const webAuthn = useWebAuthn();
+
+  useEffect(() => {
+    const checkWalletState = async () => {
+      try {
+        const walletData = await getCurrentWallet();
+        console.log('Current wallet state:', {
+          hasAddress: !!address,
+          hasMnemonic: !!mnemonic,
+          storedData: !!walletData
+        });
+      } catch (error) {
+        console.error('Failed to check wallet state:', error);
+      }
+    };
+    checkWalletState();
+  }, [getCurrentWallet, address, mnemonic]);
 
   const handleBackupToEmail = async () => {
     try {
@@ -18,7 +34,14 @@ export const SecurityScreen = ({ onBack }) => {
       await webAuthn.authenticate();
       setStatus('Preparing backup...');
 
-      // Validate wallet data
+      // Get current wallet state
+      const walletData = await getCurrentWallet();
+      console.log('Preparing backup with wallet data:', {
+        hasAddress: !!address,
+        hasMnemonic: !!mnemonic,
+        storedData: !!walletData
+      });
+
       if (!address || !mnemonic) {
         console.error('Missing wallet data:', { address, mnemonic: !!mnemonic });
         throw new Error('Wallet data not available. Please ensure you are logged in.');

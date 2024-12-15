@@ -13,6 +13,7 @@ export const useCosmWallet = () => {
   const [address, setAddress] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [mnemonic, setMnemonic] = useState(null);
+  const [currentUsername, setCurrentUsername] = useState(null);
 
   const initializeDB = async () => {
     try {
@@ -29,6 +30,27 @@ export const useCosmWallet = () => {
     } catch (error) {
       console.error('Failed to initialize database:', error);
       throw new Error('Failed to initialize secure storage');
+    }
+  };
+
+  const getCurrentWallet = async () => {
+    try {
+      if (!currentUsername) {
+        console.log('No current username set');
+        return null;
+      }
+
+      const walletData = await getEncryptedWallet(currentUsername);
+      console.log('Retrieved wallet data:', {
+        hasData: !!walletData,
+        hasAddress: !!walletData?.address,
+        hasMnemonic: !!walletData?.mnemonic
+      });
+
+      return walletData;
+    } catch (error) {
+      console.error('Failed to get current wallet:', error);
+      return null;
     }
   };
 
@@ -144,7 +166,7 @@ export const useCosmWallet = () => {
         encrypted: Array.from(encrypted.encrypted),
         iv: Array.from(encrypted.iv),
         address,
-        mnemonic: newMnemonic // Store mnemonic in wallet data
+        mnemonic: newMnemonic
       };
 
       console.log('Storing encrypted wallet...');
@@ -152,9 +174,14 @@ export const useCosmWallet = () => {
       
       setClient(wallet);
       setAddress(address);
-      setMnemonic(newMnemonic); // Set mnemonic in state
+      setMnemonic(newMnemonic);
+      setCurrentUsername(username);
       
-      console.log('Wallet setup complete with mnemonic:', !!newMnemonic);
+      console.log('Wallet setup complete:', {
+        address,
+        hasMnemonic: !!newMnemonic,
+        username
+      });
       return { success: true, address };
     } catch (error) {
       console.error('Failed to setup wallet:', error);
@@ -198,10 +225,12 @@ export const useCosmWallet = () => {
       setClient(wallet);
       setAddress(account.address);
       setMnemonic(walletData.mnemonic);
+      setCurrentUsername(username);
 
       console.log('Wallet loaded successfully:', {
         address: account.address,
-        hasMnemonic: !!walletData.mnemonic
+        hasMnemonic: !!walletData.mnemonic,
+        username
       });
 
       return { success: true, address: account.address };
@@ -235,15 +264,20 @@ export const useCosmWallet = () => {
         encrypted: Array.from(new Uint8Array(encryptedData)),
         iv: Array.from(iv),
         address: account.address,
-        mnemonic: phrase // Store mnemonic in wallet data
+        mnemonic: phrase
       };
 
       await storeEncryptedWallet(username, walletData);
       setClient(wallet);
       setAddress(account.address);
-      setMnemonic(phrase); // Set mnemonic in state
+      setMnemonic(phrase);
+      setCurrentUsername(username);
 
-      console.log('Wallet import successful with mnemonic:', !!phrase);
+      console.log('Wallet import successful:', {
+        address: account.address,
+        hasMnemonic: !!phrase,
+        username
+      });
       return { success: true, address: account.address };
     } catch (error) {
       console.error('Import failed:', error);
@@ -276,11 +310,13 @@ export const useCosmWallet = () => {
     balance: '0',
     mnemonic,
     isConnecting,
+    currentUsername,
 
     // Core wallet functions
     setupNewWallet,
     loadExistingWallet,
     importWallet,
+    getCurrentWallet,
 
     // Utility functions
     getEncryptedWallet,
