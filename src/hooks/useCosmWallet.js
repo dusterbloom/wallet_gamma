@@ -20,15 +20,27 @@ export const useCosmWallet = () => {
   };
 
   const generateNewWallet = async () => {
-    const wallet = await DirectSecp256k1HdWallet.generate(24);
-    const [account] = await wallet.getAccounts();
-    const serialized = await wallet.serialize();
-    
-    return {
-      wallet,
-      address: account.address,
-      privateKey: new TextEncoder().encode(JSON.stringify(serialized))
-    };
+    try {
+      // Create wallet with specific options
+      const wallet = await DirectSecp256k1HdWallet.generate(24, {
+        prefix: "cosmos",
+        bip39Password: "",
+      });
+      
+      const [account] = await wallet.getAccounts();
+      
+      // Serialize with password for encryption
+      const serialized = await wallet.serialize("password");
+      
+      return {
+        wallet,
+        address: account.address,
+        privateKey: new TextEncoder().encode(serialized)
+      };
+    } catch (error) {
+      console.error('Failed to generate wallet:', error);
+      throw error;
+    }
   };
 
   const encryptPrivateKey = async (privateKeyBytes, authKey) => {
@@ -102,14 +114,16 @@ export const useCosmWallet = () => {
         throw new Error('No wallet found for this user');
       }
 
-      const decrypted = await decryptPrivateKey(
+      const serializedWallet = await decryptPrivateKey(
         encrypted.encrypted,
         encrypted.iv,
         authKey
       );
 
+      // Deserialize with the same password used for serialization
       const wallet = await DirectSecp256k1HdWallet.deserialize(
-        JSON.parse(decrypted)
+        serializedWallet,
+        "password"
       );
 
       const [account] = await wallet.getAccounts();
