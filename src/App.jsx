@@ -12,6 +12,7 @@ import { ProcessingScreen } from './screens/ProcessingScreen.jsx';
 import { GroupScreen } from './screens/GroupScreen.jsx';
 import { ExpenseScreen } from './screens/ExpenseScreen.jsx';
 import { HistoryScreen } from './screens/HistoryScreen.jsx';
+import { SecurityScreen } from './screens/SecurityScreen.jsx';
 import SplitDetailsScreen from './screens/SplitDetailsScreen.jsx';
 import { NewGroupScreen } from './screens/NewGroupScreen.jsx';
 import { CashoutScreen } from './screens/CashoutScreen.jsx';
@@ -50,6 +51,7 @@ function App() {
       case 'amount':
       case 'history':
       case 'cashout':
+      case 'security': // Add this case
         navigate('wallet');
         break;
       case 'note':
@@ -96,6 +98,9 @@ function App() {
           break;
         case 'history':
           navigate('history');
+          break;
+        case 'security': // Add this case
+          navigate('security');
           break;
         default:
           console.log('Unknown action:', data);
@@ -157,6 +162,15 @@ function App() {
   return (
     <BlockchainProvider>
       <div className="relative w-full h-full min-h-screen bg-black text-white">
+        {/* ... other screens ... */}
+
+        <Screen isActive={activeScreen === 'security'}>
+          <SecurityScreen
+            onBack={handleBack}
+          />
+        </Screen>
+
+        {/* ... rest of the screens ... */}
         <Screen isActive={activeScreen === 'welcome'}>
           <div className="h-full flex flex-col items-center justify-center p-4">
             <h1 className="text-3xl font-bold mb-8">Welcome to Cycles</h1>
