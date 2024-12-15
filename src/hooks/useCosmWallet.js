@@ -188,40 +188,26 @@ export const useCosmWallet = () => {
       );
 
       const [account] = await wallet.getAccounts();
-      setClient(wallet);
-      setAddress(account.address);
-
+      
       // Make sure we have the mnemonic from the stored data
       if (!walletData.mnemonic) {
         throw new Error('No mnemonic found in stored wallet data');
       }
-      
-      console.log('Setting mnemonic from stored data');
+
+      // Set all state values
+      setClient(wallet);
+      setAddress(account.address);
       setMnemonic(walletData.mnemonic);
-      
-      console.log('Wallet loaded successfully with mnemonic:', !!walletData.mnemonic);
+
+      console.log('Wallet loaded successfully:', {
+        address: account.address,
+        hasMnemonic: !!walletData.mnemonic
+      });
+
       return { success: true, address: account.address };
     } catch (error) {
       console.error('Failed to load wallet:', error);
       return { success: false, error: error.message };
-    }
-  };
-
-  const exportWallet = async () => {
-    try {
-      console.log('Starting wallet export...');
-      console.log('Current mnemonic state:', !!mnemonic);
-      
-      if (!mnemonic) {
-        console.error('No mnemonic found in state');
-        throw new Error('No mnemonic available. Please load wallet first.');
-      }
-
-      console.log('Wallet export successful');
-      return { phrase: mnemonic };
-    } catch (error) {
-      console.error('Export failed:', error);
-      throw new Error('Failed to export wallet: ' + error.message);
     }
   };
 
@@ -265,6 +251,25 @@ export const useCosmWallet = () => {
     }
   };
 
+  const connectToChain = async (wallet) => {
+    setIsConnecting(true);
+    try {
+      console.log('Connecting to chain...', RPC_ENDPOINT);
+      const client = await SigningStargateClient.connectWithSigner(
+        RPC_ENDPOINT,
+        wallet,
+        { gasPrice: { amount: "0.025", denom: "uatom" } }
+      );
+      console.log('Connected to chain successfully');
+      return client;
+    } catch (error) {
+      console.error('Chain connection failed:', error);
+      throw new Error(`Chain connection failed: ${error.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   return {
     // State
     address,
@@ -275,15 +280,15 @@ export const useCosmWallet = () => {
     // Core wallet functions
     setupNewWallet,
     loadExistingWallet,
-    exportWallet,
     importWallet,
 
-    // Utility functions that need to be exposed
+    // Utility functions
     getEncryptedWallet,
     encryptPrivateKey,
     decryptPrivateKey,
     generateNewWallet,
     storeEncryptedWallet,
-    initializeDB
+    initializeDB,
+    connectToChain
   };
 };

@@ -9,7 +9,7 @@ export const SecurityScreen = ({ onBack }) => {
   const [error, setError] = useState('');
   const [username, setUsername] = useState('');
   const [inputPhrase, setInputPhrase] = useState('');
-  const { address, mnemonic } = useCosmWallet();
+  const { address, mnemonic, importWallet } = useCosmWallet();
   const webAuthn = useWebAuthn();
 
   const handleBackupToEmail = async () => {
@@ -17,6 +17,14 @@ export const SecurityScreen = ({ onBack }) => {
       setStatus('Verifying identity...');
       await webAuthn.authenticate();
       setStatus('Preparing backup...');
+
+      // Validate wallet data
+      if (!address || !mnemonic) {
+        console.error('Missing wallet data:', { address, mnemonic: !!mnemonic });
+        throw new Error('Wallet data not available. Please ensure you are logged in.');
+      }
+
+      console.log('Creating backup email with address:', address);
 
       const subject = 'Your Wallet Backup - KEEP THIS SAFE!';
       const body = `
