@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BlockchainProvider } from './contexts/BlockchainContext';
 import { Screen } from './components/Screen.jsx';
 import { LoginScreen } from './screens/LoginScreen.jsx';
 import { SignupScreen } from './screens/SignupScreen.jsx';
@@ -154,145 +155,146 @@ function App() {
   };
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-black text-white">
-
-      <Screen isActive={activeScreen === 'welcome'}>
-        <div className="h-full flex flex-col items-center justify-center p-4">
-          <h1 className="text-3xl font-bold mb-8">Welcome to Cycles</h1>
-          <div className="w-full space-y-4">
-            <button
-              onClick={() => navigate('signup')}
-              className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium"
-            >
-              Create Account
-            </button>
-            <button
-              onClick={() => navigate('login')}
-              className="w-full py-4 bg-zinc-900 rounded-xl text-white"
-            >
-              Sign In
-            </button>
+    <BlockchainProvider>
+      <div className="relative w-full h-full min-h-screen bg-black text-white">
+        <Screen isActive={activeScreen === 'welcome'}>
+          <div className="h-full flex flex-col items-center justify-center p-4">
+            <h1 className="text-3xl font-bold mb-8">Welcome to Cycles</h1>
+            <div className="w-full space-y-4">
+              <button
+                onClick={() => navigate('signup')}
+                className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium"
+              >
+                Create Account
+              </button>
+              <button
+                onClick={() => navigate('login')}
+                className="w-full py-4 bg-zinc-900 rounded-xl text-white"
+              >
+                Sign In
+              </button>
+            </div>
           </div>
-        </div>
-      </Screen>
+        </Screen>
 
-      <Screen isActive={activeScreen === 'login'}>
-        <LoginScreen
-          onComplete={() => {
-            navigate('wallet');
-          }}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'login'}>
+          <LoginScreen
+            onComplete={() => {
+              navigate('wallet');
+            }}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'signup'}>
-        <SignupScreen
-          onComplete={() => {
-            // Handle signup completion
-            navigate('wallet');
-          }}
-        />
-      </Screen>
-      <Screen isActive={activeScreen === 'wallet'}>
-        <WalletScreen onNavigate={handleContinue} />
-      </Screen>
+        <Screen isActive={activeScreen === 'signup'}>
+          <SignupScreen
+            onComplete={() => {
+              navigate('wallet');
+            }}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'amount'}>
-        <AmountScreen
-          type={transactionType}
-          balance={15462.10}
-          onBack={handleBack}
-          onContinue={handleContinue}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'wallet'}>
+          <WalletScreen onNavigate={handleContinue} />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'note'}>
-        <NoteScreen
-          type={transactionType}
-          amount={transactionAmount}
-          onBack={handleBack}
-          onContinue={handleContinue}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'amount'}>
+          <AmountScreen
+            type={transactionType}
+            balance={15462.10}
+            onBack={handleBack}
+            onContinue={handleContinue}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'review'}>
-        <ReviewScreen
-          amount={transactionAmount}
-          note={transactionNote}
-          onBack={handleBack}
-          onComplete={handleComplete}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'note'}>
+          <NoteScreen
+            type={transactionType}
+            amount={transactionAmount}
+            onBack={handleBack}
+            onContinue={handleContinue}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'qr'}>
-        <QRScreen
-          amount={transactionAmount}
-          note={transactionNote}
-          onBack={handleBack}
-          onClose={() => navigate('wallet')}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'review'}>
+          <ReviewScreen
+            amount={transactionAmount}
+            note={transactionNote}
+            onBack={handleBack}
+            onComplete={handleComplete}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'processing'}>
-        <ProcessingScreen
-          type={transactionType === 'send' ? 'Sending' : 'Requesting'}
-          amount={transactionAmount}
-          onClose={() => navigate('wallet')}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'qr'}>
+          <QRScreen
+            amount={transactionAmount}
+            note={transactionNote}
+            onBack={handleBack}
+            onClose={() => navigate('wallet')}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'group'}>
-        <GroupScreen
-          groups={groups}
-          onBack={handleBack}
-          onContinue={handleContinue}
-          onDeleteGroup={deleteGroup}
-          onDeleteBill={deleteBill}
-          onUpdateBill={updateBill}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'processing'}>
+          <ProcessingScreen
+            type={transactionType === 'send' ? 'Sending' : 'Requesting'}
+            amount={transactionAmount}
+            onClose={() => navigate('wallet')}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'expense'}>
-        <ExpenseScreen
-          group={selectedGroup}
-          onBack={handleBack}
-          onContinue={handleContinue}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'group'}>
+          <GroupScreen
+            groups={groups}
+            onBack={handleBack}
+            onContinue={handleContinue}
+            onDeleteGroup={deleteGroup}
+            onDeleteBill={deleteBill}
+            onUpdateBill={updateBill}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'splitDetails'}>
-        <SplitDetailsScreen
-          group={selectedGroup}
-          expense={expense}
-          bill={selectedBill}
-          onBack={handleBack}
-          onContinue={handleContinue}
-          onUpdateBill={(billData) => updateBill(selectedGroup.id, selectedBill.id, billData)}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'expense'}>
+          <ExpenseScreen
+            group={selectedGroup}
+            onBack={handleBack}
+            onContinue={handleContinue}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'newGroup'}>
-        <NewGroupScreen
-          onBack={handleBack}
-          onComplete={handleContinue}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'splitDetails'}>
+          <SplitDetailsScreen
+            group={selectedGroup}
+            expense={expense}
+            bill={selectedBill}
+            onBack={handleBack}
+            onContinue={handleContinue}
+            onUpdateBill={(billData) => updateBill(selectedGroup.id, selectedBill.id, billData)}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'history'}>
-        <HistoryScreen
-          onBack={handleBack}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'newGroup'}>
+          <NewGroupScreen
+            onBack={handleBack}
+            onComplete={handleContinue}
+          />
+        </Screen>
 
-      <Screen isActive={activeScreen === 'cashout'}>
-        <CashoutScreen
-          balance={15462.10}
-          onBack={handleBack}
-          onComplete={handleComplete}
-        />
-      </Screen>
+        <Screen isActive={activeScreen === 'history'}>
+          <HistoryScreen
+            onBack={handleBack}
+          />
+        </Screen>
 
-      <Celebrations isActive={showConfetti} />
-    </div>
+        <Screen isActive={activeScreen === 'cashout'}>
+          <CashoutScreen
+            balance={15462.10}
+            onBack={handleBack}
+            onComplete={handleComplete}
+          />
+        </Screen>
+
+        <Celebrations isActive={showConfetti} />
+      </div>
+    </BlockchainProvider>
   );
 }
 

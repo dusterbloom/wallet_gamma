@@ -1,10 +1,18 @@
 import { useState } from 'react';
+import { Buffer as BufferPolyfill } from 'buffer/';
 
 export const useWebAuthn = () => {
   const [isSupported] = useState(() => {
     return window.PublicKeyCredential && 
            typeof window.PublicKeyCredential === 'function';
   });
+
+  const generateAuthKey = (credential) => {
+    // Generate a deterministic key from the credential ID and raw ID
+    const rawId = BufferPolyfill.from(credential.rawId).toString('base64');
+    const credId = credential.id;
+    return `${rawId}:${credId}`;
+  };
 
   const register = async (username) => {
     if (!isSupported) {
@@ -17,28 +25,25 @@ export const useWebAuthn = () => {
         throw new Error('No platform authenticator available');
       }
 
-      // This would come from your backend in production
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
-      // Get the domain without protocol
       const domain = window.location.hostname;
       
       const publicKeyCredentialCreationOptions = {
         challenge,
         rp: {
           name: "Cycles Pocket",
-          // For Netlify sites, use the full domain
           id: domain
         },
         user: {
-          id: new Uint8Array(16), // Should be unique per user
+          id: new Uint8Array(16),
           name: username,
           displayName: username
         },
         pubKeyCredParams: [
-          { type: "public-key", alg: -7 }, // ES256
-          { type: "public-key", alg: -257 } // RS256
+          { type: "public-key", alg: -7 },
+          { type: "public-key", alg: -257 }
         ],
         authenticatorSelection: {
           authenticatorAttachment: "platform",
@@ -56,7 +61,9 @@ export const useWebAuthn = () => {
         throw new Error('Failed to create credential');
       }
 
-      return credential;
+      // Generate an auth key from the credential
+      const authKey = generateAuthKey(credential);
+      return { credential, authKey };
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -94,7 +101,9 @@ export const useWebAuthn = () => {
         throw new Error('Authentication failed');
       }
 
-      return credential;
+      // Generate an auth key from the credential
+      const authKey = generateAuthKey(credential);
+      return { credential, authKey };
     } catch (error) {
       console.error('Authentication failed:', error);
       throw error;

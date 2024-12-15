@@ -1,17 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Header } from '../components/Screen.jsx';
 import { useWebAuthn } from '../hooks/useWebAuthn.js';
+import { useCosmWallet } from '../hooks/useCosmWallet.js';
 
 export const LoginScreen = ({ onComplete }) => {
+  const [error, setError] = useState('');
   const { authenticate } = useWebAuthn();
+  const { loadExistingWallet } = useCosmWallet();
 
   const handleLogin = async () => {
     try {
-      await authenticate();
-      onComplete();
+      const { authKey } = await authenticate();
+      const { success, address, error } = await loadExistingWallet(username, authKey);
+      
+      if (!success) {
+        throw new Error(error || 'Failed to load wallet');
+      }
+
+      onComplete({ address });
     } catch (error) {
       console.error('Authentication failed:', error);
-      // Handle error (show message to user)
+      setError(error.message);
     }
   };
 
@@ -25,6 +34,12 @@ export const LoginScreen = ({ onComplete }) => {
             <div className="text-2xl font-medium mb-2">Welcome Back</div>
             <p className="text-zinc-500">Sign in with your passkey</p>
           </div>
+
+          {error && (
+            <div className="text-red-500 text-center text-sm">
+              {error}
+            </div>
+          )}
 
           <button
             onClick={handleLogin}
