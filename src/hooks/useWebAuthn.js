@@ -7,11 +7,19 @@ export const useWebAuthn = () => {
            typeof window.PublicKeyCredential === 'function';
   });
 
-  const generateAuthKey = (credential) => {
+  const generateAuthKey = async (credential) => {
     // Generate a deterministic key from the credential ID and raw ID
     const rawId = BufferPolyfill.from(credential.rawId).toString('base64');
     const credId = credential.id;
-    return `${rawId}:${credId}`;
+    const combinedData = `${rawId}:${credId}`;
+    
+    // Hash the combined data to get a consistent 256-bit key
+    const encoder = new TextEncoder();
+    const data = encoder.encode(combinedData);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    
+    // Convert hash to base64 string
+    return BufferPolyfill.from(hash).toString('base64');
   };
 
   const register = async (username) => {
@@ -28,7 +36,7 @@ export const useWebAuthn = () => {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
-      const domain = window.location.hostname;
+      const domain = window.location.hostname || 'localhost';
       
       const publicKeyCredentialCreationOptions = {
         challenge,
@@ -37,7 +45,7 @@ export const useWebAuthn = () => {
           id: domain
         },
         user: {
-          id: new Uint8Array(16),
+          id: crypto.getRandomValues(new Uint8Array(16)),
           name: username,
           displayName: username
         },
@@ -61,8 +69,8 @@ export const useWebAuthn = () => {
         throw new Error('Failed to create credential');
       }
 
-      // Generate an auth key from the credential
-      const authKey = generateAuthKey(credential);
+      // Generate a proper 256-bit key from the credential
+      const authKey = await generateAuthKey(credential);
       return { credential, authKey };
     } catch (error) {
       console.error('Registration failed:', error);
@@ -84,7 +92,7 @@ export const useWebAuthn = () => {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
-      const domain = window.location.hostname;
+      const domain = window.location.hostname || 'localhost';
 
       const publicKeyCredentialRequestOptions = {
         challenge,
@@ -101,8 +109,8 @@ export const useWebAuthn = () => {
         throw new Error('Authentication failed');
       }
 
-      // Generate an auth key from the credential
-      const authKey = generateAuthKey(credential);
+      // Generate the same 256-bit key from the credential
+      const authKey = await generateAuthKey(credential);
       return { credential, authKey };
     } catch (error) {
       console.error('Authentication failed:', error);
