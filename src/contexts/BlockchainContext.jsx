@@ -1,40 +1,86 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { SigningStargateClient, StargateClient } from '@cosmjs/stargate';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 
-const CHAIN_RPC_ENDPOINT = 'https://rpc.cosmos.network:443';
+// List of backup RPC endpoints in case primary fails
+const RPC_ENDPOINTS = [
+  'https://rpc.cosmos.directory/cosmoshub',
+  'https://cosmos-rpc.polkachu.com',
+  'https://rpc-cosmoshub.blockapsis.com',
+  'https://cosmos-rpc.quickapi.com:443'
+];
+
 const DENOM = 'uatom';
 
 const BlockchainContext = createContext({
   client: null,
-  address: '',
   balance: '0',
   isReady: false,
   error: null,
+  connectWithWallet: async () => {},
   sendTokens: async () => {},
 });
 
 export function BlockchainProvider({ children }) {
   const [client, setClient] = useState(null);
-  const [address, setAddress] = useState('');
   const [balance, setBalance] = useState('0');
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(null);
+  const [currentEndpoint, setCurrentEndpoint] = useState(0);
 
-  const initializeWallet = async (authKey) => {
+  // Try connecting to different RPC endpoints
+  const tryConnect = async (wallet = null) => {
+    for (let i = currentEndpoint; i < RPC_ENDPOINTS.length; i++) {
+      try {
+        const endpoint = RPC_ENDPOINTS[i];
+        console.log(`Attempting to connect to ${endpoint}...`);
+        
+        let newClient;
+        if (wallet) {
+          newClient = await SigningStargateClient.connectWithSigner(
+            endpoint,
+            wallet,
+            { gasPrice: { amount: "0.025", denom: DENOM } }
+          );
+        } else {
+          newClient = await StargateClient.connect(endpoint);
+        }
+        
+        setCurrentEndpoint(i);
+        setClient(newClient);
+        setError(null);
+        return newClient;
+      } catch (e) {
+        console.warn(`Failed to connect to ${RPC_ENDPOINTS[i]}:`, e);
+        continue;
+      }
+    }
+    throw new Error('Failed to connect to any RPC endpoint');
+  };
+
+  // Initialize read-only connection
+  useEffect(() => {
+    const initConnection = async () => {
+      try {
+        await tryConnect();
+        setIsReady(true);
+      } catch (e) {
+        setError('Failed to connect to blockchain');
+        console.error(e);
+      }
+    };
+
+    if (!client && !error) {
+      initConnection();
+    }
+  }, [client, error]);
+
+  const connectWithWallet = async (serializedWallet) => {
     try {
-      // In production, you would decrypt the stored wallet using authKey
-      // For demo, we'll create a new wallet
-      const wallet = await DirectSecp256k1HdWallet.generate(24);
+      const wallet = await DirectSecp256k1HdWallet.deserialize(serializedWallet, "password");
       const [account] = await wallet.getAccounts();
       
-      const signingClient = await SigningStargateClient.connectWithSigner(
-        CHAIN_RPC_ENDPOINT,
-        wallet
-      );
-
-      setClient(signingClient);
-      setAddress(account.address);
+      const signingClient = await tryConnect(wallet);
       
       // Get initial balance
       const balances = await signingClient.getAllBalances(account.address);
@@ -42,21 +88,21 @@ export function BlockchainProvider({ children }) {
       setBalance(atomBalance ? atomBalance.amount : '0');
       
       setIsReady(true);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to initialize wallet:', err);
-      setError(err.message);
+      return { success: true, address: account.address };
+    } catch (e) {
+      setError('Failed to connect wallet');
+      console.error(e);
+      return { success: false, error: e.message };
     }
   };
 
   const sendTokens = async (recipientAddress, amount) => {
-    if (!client || !address) {
-      throw new Error('Wallet not initialized');
+    if (!client || !client.sendTokens) {
+      throw new Error('Signing client not initialized');
     }
 
     try {
       const result = await client.sendTokens(
-        address,
         recipientAddress,
         [{ denom: DENOM, amount: amount.toString() }],
         {
@@ -66,25 +112,24 @@ export function BlockchainProvider({ children }) {
       );
 
       // Update balance after send
-      const balances = await client.getAllBalances(address);
+      const balances = await client.getAllBalances(recipientAddress);
       const atomBalance = balances.find(b => b.denom === DENOM);
       setBalance(atomBalance ? atomBalance.amount : '0');
 
       return { success: true, hash: result.transactionHash };
-    } catch (err) {
-      console.error('Failed to send tokens:', err);
-      throw err;
+    } catch (e) {
+      console.error('Failed to send tokens:', e);
+      return { success: false, error: e.message };
     }
   };
 
   const value = {
     client,
-    address,
     balance,
     isReady,
     error,
+    connectWithWallet,
     sendTokens,
-    initializeWallet,
   };
 
   return (

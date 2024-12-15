@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { openDB } from 'idb';
+import { useBlockchain } from '../contexts/BlockchainContext';
 
 const DB_NAME = 'cosmos_wallet';
 const STORE_NAME = 'encrypted_keys';
 
 export const useCosmWallet = () => {
   const [address, setAddress] = useState(null);
+  const { connectWithWallet, balance } = useBlockchain();
 
   const initializeDB = async () => {
     return openDB(DB_NAME, 1, {
@@ -28,7 +30,8 @@ export const useCosmWallet = () => {
       const serialized = await wallet.serialize("password");
       return {
         address: account.address,
-        privateKey: new TextEncoder().encode(serialized)
+        privateKey: new TextEncoder().encode(serialized),
+        serialized
       };
     } catch (error) {
       console.error('Failed to generate wallet:', error);
@@ -49,7 +52,7 @@ export const useCosmWallet = () => {
   const setupNewWallet = async (username, authKey) => {
     try {
       console.log('Setting up new wallet...');
-      const { address, privateKey } = await generateNewWallet();
+      const { address, privateKey, serialized } = await generateNewWallet();
       
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const encryptedData = await crypto.subtle.encrypt(
@@ -67,6 +70,9 @@ export const useCosmWallet = () => {
       await storeEncryptedWallet(username, walletData);
       setAddress(address);
       
+      // Connect to blockchain with the new wallet
+      await connectWithWallet(serialized);
+      
       return { success: true, address };
     } catch (error) {
       console.error('Failed to setup wallet:', error);
@@ -81,7 +87,18 @@ export const useCosmWallet = () => {
         throw new Error('No wallet found');
       }
 
+      const decryptedData = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: walletData.iv },
+        authKey,
+        walletData.encrypted
+      );
+
+      const serialized = new TextDecoder().decode(decryptedData);
       setAddress(walletData.address);
+
+      // Connect to blockchain with the loaded wallet
+      await connectWithWallet(serialized);
+
       return { success: true, address: walletData.address };
     } catch (error) {
       console.error('Failed to load wallet:', error);
@@ -91,6 +108,7 @@ export const useCosmWallet = () => {
 
   return {
     address,
+    balance,
     setupNewWallet,
     loadExistingWallet
   };
