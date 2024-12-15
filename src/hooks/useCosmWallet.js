@@ -14,11 +14,19 @@ export const useCosmWallet = () => {
   const [isConnecting, setIsConnecting] = useState(false);
 
   const initializeDB = async () => {
-    return openDB(DB_NAME, 1, {
-      upgrade(db) {
-        db.createObjectStore(STORE_NAME);
-      },
-    });
+    try {
+      const db = await openDB(DB_NAME, 1, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        },
+      });
+      return db;
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      throw new Error('Failed to initialize secure storage');
+    }
   };
 
   const generateNewWallet = async () => {
@@ -79,13 +87,32 @@ export const useCosmWallet = () => {
   };
 
   const storeEncryptedWallet = async (username, encryptedData) => {
-    const db = await initializeDB();
-    await db.put(STORE_NAME, encryptedData, username);
+    try {
+      console.log('Storing wallet for user:', username);
+      const db = await initializeDB();
+      await db.put(STORE_NAME, encryptedData, username);
+      console.log('Wallet stored successfully');
+    } catch (error) {
+      console.error('Failed to store wallet:', error);
+      throw new Error('Failed to store wallet securely');
+    }
   };
 
   const getEncryptedWallet = async (username) => {
-    const db = await initializeDB();
-    return db.get(STORE_NAME, username);
+    try {
+      console.log('Retrieving wallet for user:', username);
+      const db = await initializeDB();
+      const walletData = await db.get(STORE_NAME, username);
+      if (!walletData) {
+        console.log('No wallet found for user:', username);
+        return null;
+      }
+      console.log('Wallet retrieved successfully');
+      return walletData;
+    } catch (error) {
+      console.error('Failed to retrieve wallet:', error);
+      throw new Error('Failed to retrieve wallet data');
+    }
   };
 
   const setupNewWallet = async (username, authKey) => {
@@ -97,7 +124,11 @@ export const useCosmWallet = () => {
       const encrypted = await encryptPrivateKey(privateKey, authKey);
       
       console.log('Storing encrypted wallet...');
-      await storeEncryptedWallet(username, encrypted);
+      await storeEncryptedWallet(username, {
+        encrypted: encrypted.encrypted,
+        iv: encrypted.iv,
+        address
+      });
       
       setClient(wallet);
       setAddress(address);
@@ -114,8 +145,10 @@ export const useCosmWallet = () => {
     try {
       console.log('Loading wallet for user:', username);
       const walletData = await getEncryptedWallet(username);
+      
       if (!walletData) {
-        throw new Error('No wallet found for this user');
+        console.error('No wallet found for username:', username);
+        return { success: false, error: 'No wallet found for this username' };
       }
 
       console.log('Decrypting wallet data...');

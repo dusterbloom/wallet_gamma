@@ -155,25 +155,7 @@ export const WalletScreen = ({ onNavigate }) => {
           </div>
         </button>
 
-        <button
-          onClick={() => onNavigate('history')}
-          className="w-full p-4 bg-zinc-900 rounded-xl
-                   transition-all duration-200 hover:bg-zinc-800 
-                   active:scale-98"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
-                <span className="text-xl">📊</span>
-              </div>
-              <div>
-                <span className="text-lg">Transaction History</span>
-                <p className="text-sm text-zinc-500">View all transactions</p>
-              </div>
-            </div>
-            <span>→</span>
-          </div>
-        </button>
+       
       </div>
     </div>
   );
