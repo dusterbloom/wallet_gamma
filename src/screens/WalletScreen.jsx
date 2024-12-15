@@ -1,8 +1,24 @@
 import React, { useState } from 'react';
+import { useCosmWallet } from '../hooks/useCosmWallet';
 
 export const WalletScreen = ({ onNavigate }) => {
-  const balance = 15462.10;
+  const { address, balance } = useCosmWallet();
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
+
+  const formatAddress = (addr) => {
+    if (!addr) return '';
+    return `${addr.slice(0, 8)}...${addr.slice(-8)}`;
+  };
+
+  const formatBalance = (bal) => {
+    if (!bal) return '0.00';
+    // Convert from uatom to ATOM (1 ATOM = 1,000,000 uatom)
+    const atomBalance = parseFloat(bal) / 1000000;
+    return atomBalance.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    });
+  };
 
   const handleLongPress = () => {
     setIsBalanceHidden(prev => !prev);
@@ -33,7 +49,7 @@ export const WalletScreen = ({ onNavigate }) => {
         <div className="text-5xl font-bold mb-2">
           {isBalanceHidden ? 
             '********' : 
-            `$${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+            `$${formatBalance(balance)}`
           }
         </div>
         <p className="text-zinc-500">
@@ -50,6 +66,11 @@ export const WalletScreen = ({ onNavigate }) => {
             </>
           )}
         </p>
+        {address && (
+          <p className="text-xs text-zinc-600 mt-2">
+            {formatAddress(address)}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -109,6 +130,46 @@ export const WalletScreen = ({ onNavigate }) => {
                 <span className="text-xl text-black">↑</span>
               </div>
               <span className="text-lg">Cash Out</span>
+            </div>
+            <span>→</span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onNavigate('security')}
+          className="w-full p-4 bg-zinc-900 rounded-xl
+                   transition-all duration-200 hover:bg-zinc-800 
+                   active:scale-98"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-[#FF9500] flex items-center justify-center">
+                <span className="text-xl">🔐</span>
+              </div>
+              <div>
+                <span className="text-lg">Backup & Security</span>
+                <p className="text-sm text-zinc-500">Protect your wallet</p>
+              </div>
+            </div>
+            <span>→</span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onNavigate('history')}
+          className="w-full p-4 bg-zinc-900 rounded-xl
+                   transition-all duration-200 hover:bg-zinc-800 
+                   active:scale-98"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
+                <span className="text-xl">📊</span>
+              </div>
+              <div>
+                <span className="text-lg">Transaction History</span>
+                <p className="text-sm text-zinc-500">View all transactions</p>
+              </div>
             </div>
             <span>→</span>
           </div>

@@ -1,115 +1,81 @@
-import { useState, useEffect } from 'react';
-import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
-import { openDB } from 'idb';
-import { useBlockchain } from '../contexts/BlockchainContext';
+// Add these functions to the existing useCosmWallet hook
 
-const DB_NAME = 'cosmos_wallet';
-const STORE_NAME = 'encrypted_keys';
+const exportWallet = async (authKey) => {
+  try {
+    const walletData = await getEncryptedWallet(username);
+    if (!walletData) {
+      throw new Error('No wallet found');
+    }
 
-export const useCosmWallet = () => {
-  const [address, setAddress] = useState(null);
-  const { connectWithWallet, balance } = useBlockchain();
+    const decryptedData = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: walletData.iv },
+      authKey,
+      walletData.encrypted
+    );
 
-  const initializeDB = async () => {
-    return openDB(DB_NAME, 1, {
-      upgrade(db) {
-        db.createObjectStore(STORE_NAME);
-      },
+    const serializedWallet = new TextDecoder().decode(decryptedData);
+    const wallet = await DirectSecp256k1HdWallet.deserialize(serializedWallet, "password");
+    
+    // Get the mnemonic (recovery phrase)
+    const phrase = wallet.mnemonic;
+    
+    // Create QR data
+    const qrData = JSON.stringify({
+      type: 'cosmos-wallet-backup',
+      phrase,
+      timestamp: Date.now()
     });
-  };
 
-  const generateNewWallet = async () => {
-    try {
-      const wallet = await DirectSecp256k1HdWallet.generate(24, {
-        prefix: "cosmos",
-      });
-      
-      const [account] = await wallet.getAccounts();
-      console.log('Generated wallet address:', account.address);
-      
-      const serialized = await wallet.serialize("password");
-      return {
-        address: account.address,
-        privateKey: new TextEncoder().encode(serialized),
-        serialized
-      };
-    } catch (error) {
-      console.error('Failed to generate wallet:', error);
-      throw error;
+    return { phrase, qrData };
+  } catch (error) {
+    console.error('Export failed:', error);
+    throw new Error('Failed to export wallet');
+  }
+};
+
+const importWallet = async (phrase, authKey) => {
+  try {
+    // Validate mnemonic
+    if (!validateMnemonic(phrase)) {
+      throw new Error('Invalid recovery phrase');
     }
-  };
 
-  const storeEncryptedWallet = async (username, encryptedData) => {
-    const db = await initializeDB();
-    await db.put(STORE_NAME, encryptedData, username);
-  };
+    // Create new wallet from phrase
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(phrase, {
+      prefix: "cosmos",
+    });
 
-  const getEncryptedWallet = async (username) => {
-    const db = await initializeDB();
-    return db.get(STORE_NAME, username);
-  };
+    const [account] = await wallet.getAccounts();
+    const serialized = await wallet.serialize("password");
+    
+    // Encrypt the wallet data
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encryptedData = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      authKey,
+      new TextEncoder().encode(serialized)
+    );
 
-  const setupNewWallet = async (username, authKey) => {
-    try {
-      console.log('Setting up new wallet...');
-      const { address, privateKey, serialized } = await generateNewWallet();
-      
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encryptedData = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        authKey,
-        privateKey
-      );
+    // Store the encrypted wallet
+    const walletData = {
+      encrypted: new Uint8Array(encryptedData),
+      iv,
+      address: account.address
+    };
 
-      const walletData = {
-        encrypted: new Uint8Array(encryptedData),
-        iv,
-        address
-      };
+    await storeEncryptedWallet(username, walletData);
+    setAddress(account.address);
 
-      await storeEncryptedWallet(username, walletData);
-      setAddress(address);
-      
-      // Connect to blockchain with the new wallet
-      await connectWithWallet(serialized);
-      
-      return { success: true, address };
-    } catch (error) {
-      console.error('Failed to setup wallet:', error);
-      return { success: false, error: error.message };
-    }
-  };
+    return { success: true, address: account.address };
+  } catch (error) {
+    console.error('Import failed:', error);
+    throw new Error('Failed to import wallet');
+  }
+};
 
-  const loadExistingWallet = async (username, authKey) => {
-    try {
-      const walletData = await getEncryptedWallet(username);
-      if (!walletData) {
-        throw new Error('No wallet found');
-      }
-
-      const decryptedData = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: walletData.iv },
-        authKey,
-        walletData.encrypted
-      );
-
-      const serialized = new TextDecoder().decode(decryptedData);
-      setAddress(walletData.address);
-
-      // Connect to blockchain with the loaded wallet
-      await connectWithWallet(serialized);
-
-      return { success: true, address: walletData.address };
-    } catch (error) {
-      console.error('Failed to load wallet:', error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  return {
-    address,
-    balance,
-    setupNewWallet,
-    loadExistingWallet
-  };
+// Add to the return object:
+return {
+  // ... existing returns ...
+  exportWallet,
+  importWallet,
 };
