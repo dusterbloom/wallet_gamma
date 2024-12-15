@@ -10,6 +10,8 @@ export const SecurityScreen = ({ onBack }) => {
   const [error, setError] = useState('');
   const [recoveryPhrase, setRecoveryPhrase] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [username, setUsername] = useState('');
+  const [inputPhrase, setInputPhrase] = useState('');
   const { exportWallet, importWallet } = useCosmWallet();
   const webAuthn = useWebAuthn();
 
@@ -24,21 +26,27 @@ export const SecurityScreen = ({ onBack }) => {
       setMode('phrase');
       setStatus('');
     } catch (error) {
+      console.error('Export failed:', error);
       setError(error.message);
       setStatus('');
     }
   };
 
-  const handleImport = async (phrase) => {
+  const handleImport = async () => {
     try {
+      if (!username || !inputPhrase) {
+        throw new Error('Please provide both username and recovery phrase');
+      }
+
       setStatus('Verifying identity...');
       const { authKey } = await webAuthn.authenticate();
       
       setStatus('Restoring wallet...');
-      await importWallet(phrase, authKey);
+      await importWallet(inputPhrase, username, authKey);
       setStatus('Wallet restored successfully!');
       setTimeout(() => onBack(), 2000);
     } catch (error) {
+      console.error('Import failed:', error);
       setError(error.message);
       setStatus('');
     }
@@ -166,50 +174,54 @@ export const SecurityScreen = ({ onBack }) => {
     </div>
   );
 
-  const renderImport = () => {
-    const [inputPhrase, setInputPhrase] = useState('');
-    const [showScanner, setShowScanner] = useState(false);
-
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <h3 className="text-xl font-medium mb-2">Restore Wallet</h3>
-          <p className="text-zinc-500">
-            Enter your 24-word recovery phrase to restore your wallet.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <textarea
-            value={inputPhrase}
-            onChange={(e) => setInputPhrase(e.target.value)}
-            placeholder="Enter recovery phrase..."
-            className="w-full h-40 bg-zinc-900 rounded-xl p-4 text-white placeholder-zinc-500
-                     outline-none resize-none"
-          />
-
-          <button
-            onClick={() => setShowScanner(true)}
-            className="w-full py-4 bg-zinc-900 rounded-xl text-white
-                     transition-all duration-200 hover:bg-zinc-800
-                     active:scale-98"
-          >
-            Scan QR Code
-          </button>
-
-          <button
-            onClick={() => handleImport(inputPhrase)}
-            disabled={!inputPhrase.trim()}
-            className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium
-                     transition-all duration-200 hover:bg-[#FF9500]/90
-                     active:scale-98 disabled:opacity-50"
-          >
-            Restore Wallet
-          </button>
-        </div>
+  const renderImport = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-xl font-medium mb-2">Restore Wallet</h3>
+        <p className="text-zinc-500">
+          Enter your username and 24-word recovery phrase to restore your wallet.
+        </p>
       </div>
-    );
-  };
+
+      <div className="space-y-4">
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Username"
+          className="w-full bg-zinc-900 rounded-xl p-4 text-white placeholder-zinc-500
+                   outline-none"
+        />
+
+        <textarea
+          value={inputPhrase}
+          onChange={(e) => setInputPhrase(e.target.value)}
+          placeholder="Enter recovery phrase..."
+          className="w-full h-40 bg-zinc-900 rounded-xl p-4 text-white placeholder-zinc-500
+                   outline-none resize-none"
+        />
+
+        <button
+          onClick={handleImport}
+          disabled={!username || !inputPhrase.trim()}
+          className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium
+                   transition-all duration-200 hover:bg-[#FF9500]/90
+                   active:scale-98 disabled:opacity-50"
+        >
+          Restore Wallet
+        </button>
+
+        <button
+          onClick={() => setMode('menu')}
+          className="w-full py-4 bg-zinc-900 rounded-xl text-white
+                   transition-all duration-200 hover:bg-zinc-800
+                   active:scale-98"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-full flex flex-col bg-black">
