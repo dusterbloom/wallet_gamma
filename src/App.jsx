@@ -51,7 +51,7 @@ function App() {
       case 'amount':
       case 'history':
       case 'cashout':
-      case 'security': // Add this case
+      case 'security':
         navigate('wallet');
         break;
       case 'note':
@@ -99,7 +99,7 @@ function App() {
         case 'history':
           navigate('history');
           break;
-        case 'security': // Add this case
+        case 'security':
           navigate('security');
           break;
         default:
@@ -162,15 +162,6 @@ function App() {
   return (
     <BlockchainProvider>
       <div className="relative w-full h-full min-h-screen bg-black text-white">
-        {/* ... other screens ... */}
-
-        <Screen isActive={activeScreen === 'security'}>
-          <SecurityScreen
-            onBack={handleBack}
-          />
-        </Screen>
-
-        {/* ... rest of the screens ... */}
         <Screen isActive={activeScreen === 'welcome'}>
           <div className="h-full flex flex-col items-center justify-center p-4">
             <h1 className="text-3xl font-bold mb-8">Welcome to Cycles</h1>
@@ -294,6 +285,12 @@ function App() {
 
         <Screen isActive={activeScreen === 'history'}>
           <HistoryScreen
+            onBack={handleBack}
+          />
+        </Screen>
+
+        <Screen isActive={activeScreen === 'security'}>
+          <SecurityScreen
             onBack={handleBack}
           />
         </Screen>
