@@ -11,32 +11,39 @@ export const useWebAuthn = () => {
 
   const generateAuthKey = async (credential) => {
     try {
+      // Get the raw credential ID as bytes
       const rawId = new Uint8Array(credential.rawId);
+      
+      // Create a consistent salt
       const salt = new TextEncoder().encode('cosmos-wallet-v1');
       
+      // Import the raw ID as key material
       const keyMaterial = await crypto.subtle.importKey(
         'raw',
         rawId,
-        'PBKDF2',
+        { name: 'PBKDF2' },
         false,
         ['deriveBits', 'deriveKey']
       );
 
-      return await crypto.subtle.deriveKey(
+      // Derive a key using PBKDF2
+      const key = await crypto.subtle.deriveKey(
         {
           name: 'PBKDF2',
-          salt,
+          salt: salt,
           iterations: 100000,
           hash: 'SHA-256'
         },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
-        false,
+        true, // extractable
         ['encrypt', 'decrypt']
       );
+
+      return key;
     } catch (error) {
       console.error('Key generation failed:', error);
-      throw new Error('Failed to generate key');
+      throw new Error('Failed to generate secure key');
     }
   };
 
@@ -53,16 +60,21 @@ export const useWebAuthn = () => {
           challenge,
           rp: {
             name: "Cycles Wallet",
-            id: window.location.hostname
+            id: window.location.hostname || 'localhost'
           },
           user: {
-            id: crypto.getRandomValues(new Uint8Array(16)),
+            id: new TextEncoder().encode(username), // Use username as ID
             name: username,
             displayName: username
           },
           pubKeyCredParams: [
-            { type: "public-key", alg: -7 }
+            { type: "public-key", alg: -7 }, // ES256
+            { type: "public-key", alg: -257 } // RS256
           ],
+          authenticatorSelection: {
+            userVerification: "preferred",
+            residentKey: "preferred"
+          },
           timeout: 60000,
           attestation: "none"
         }
@@ -72,6 +84,7 @@ export const useWebAuthn = () => {
         throw new Error('Failed to create credential');
       }
 
+      console.log('Credential created:', credential);
       const authKey = await generateAuthKey(credential);
       return { credential, authKey };
     } catch (error) {
@@ -87,12 +100,12 @@ export const useWebAuthn = () => {
 
     try {
       const challenge = crypto.getRandomValues(new Uint8Array(32));
-      
+
       const credential = await navigator.credentials.get({
         publicKey: {
           challenge,
           timeout: 60000,
-          userVerification: "preferred"
+          userVerification: "preferred",
         }
       });
 
@@ -100,6 +113,7 @@ export const useWebAuthn = () => {
         throw new Error('Authentication failed');
       }
 
+      console.log('Authentication successful:', credential);
       const authKey = await generateAuthKey(credential);
       return { credential, authKey };
     } catch (error) {

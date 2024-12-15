@@ -15,6 +15,7 @@ export const useCosmWallet = () => {
 
   const initializeDB = async () => {
     try {
+      console.log('Initializing database...');
       const db = await openDB(DB_NAME, 1, {
         upgrade(db) {
           if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -22,6 +23,7 @@ export const useCosmWallet = () => {
           }
         },
       });
+      console.log('Database initialized successfully');
       return db;
     } catch (error) {
       console.error('Failed to initialize database:', error);
@@ -31,15 +33,16 @@ export const useCosmWallet = () => {
 
   const generateNewWallet = async () => {
     try {
+      console.log('Generating new wallet...');
       const wallet = await DirectSecp256k1HdWallet.generate(24, {
         prefix: CHAIN_PREFIX,
-        bip39Password: ""
       });
       
       const [account] = await wallet.getAccounts();
       console.log('Generated wallet address:', account.address);
       
       const serialized = await wallet.serialize("password");
+      console.log('Wallet serialized successfully');
       
       return {
         wallet,
@@ -54,35 +57,46 @@ export const useCosmWallet = () => {
 
   const encryptPrivateKey = async (privateKeyBytes, authKey) => {
     try {
+      console.log('Starting encryption...');
       const iv = crypto.getRandomValues(new Uint8Array(12));
+      
+      // Log sizes for debugging
+      console.log('Private key size:', privateKeyBytes.length);
+      
       const encryptedData = await crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         authKey,
         privateKeyBytes
       );
 
+      console.log('Encryption successful');
       return {
         encrypted: new Uint8Array(encryptedData),
         iv
       };
     } catch (error) {
       console.error('Encryption failed:', error);
-      throw new Error('Failed to encrypt wallet data');
+      throw new Error('Failed to encrypt wallet data: ' + error.message);
     }
   };
 
   const decryptPrivateKey = async (encryptedData, iv, authKey) => {
     try {
+      console.log('Starting decryption...');
+      console.log('Encrypted data size:', encryptedData.length);
+      console.log('IV size:', iv.length);
+
       const decryptedData = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv },
         authKey,
         encryptedData
       );
 
+      console.log('Decryption successful');
       return new TextDecoder().decode(decryptedData);
     } catch (error) {
       console.error('Decryption failed:', error);
-      throw new Error('Failed to decrypt wallet data');
+      throw new Error('Failed to decrypt wallet data: ' + error.message);
     }
   };
 
@@ -123,12 +137,14 @@ export const useCosmWallet = () => {
       console.log('Encrypting wallet data...');
       const encrypted = await encryptPrivateKey(privateKey, authKey);
       
-      console.log('Storing encrypted wallet...');
-      await storeEncryptedWallet(username, {
-        encrypted: encrypted.encrypted,
-        iv: encrypted.iv,
+      const walletData = {
+        encrypted: Array.from(encrypted.encrypted), // Convert to regular array for storage
+        iv: Array.from(encrypted.iv), // Convert to regular array for storage
         address
-      });
+      };
+
+      console.log('Storing encrypted wallet...');
+      await storeEncryptedWallet(username, walletData);
       
       setClient(wallet);
       setAddress(address);
@@ -147,14 +163,17 @@ export const useCosmWallet = () => {
       const walletData = await getEncryptedWallet(username);
       
       if (!walletData) {
-        console.error('No wallet found for username:', username);
-        return { success: false, error: 'No wallet found for this username' };
+        throw new Error('No wallet found for this username');
       }
 
       console.log('Decrypting wallet data...');
+      // Convert back to Uint8Array for decryption
+      const encrypted = new Uint8Array(walletData.encrypted);
+      const iv = new Uint8Array(walletData.iv);
+
       const serializedWallet = await decryptPrivateKey(
-        walletData.encrypted,
-        walletData.iv,
+        encrypted,
+        iv,
         authKey
       );
 
@@ -219,8 +238,8 @@ export const useCosmWallet = () => {
 
       // Store the encrypted wallet
       const walletData = {
-        encrypted: new Uint8Array(encryptedData),
-        iv,
+        encrypted: Array.from(new Uint8Array(encryptedData)),
+        iv: Array.from(iv),
         address: account.address
       };
 
