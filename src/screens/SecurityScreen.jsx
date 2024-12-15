@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { Header } from '../components/Screen.jsx';
 import { useCosmWallet } from '../hooks/useCosmWallet';
 import { useWebAuthn } from '../hooks/useWebAuthn';
-import QRCode from 'react-qr-code';
 
 export const SecurityScreen = ({ onBack }) => {
-  const [mode, setMode] = useState('menu'); // menu, export, import, phrase
+  const [mode, setMode] = useState('menu');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [recoveryPhrase, setRecoveryPhrase] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [username, setUsername] = useState('');
   const [inputPhrase, setInputPhrase] = useState('');
+  const [copied, setCopied] = useState(false);
   const { exportWallet, importWallet } = useCosmWallet();
   const webAuthn = useWebAuthn();
 
@@ -21,7 +21,7 @@ export const SecurityScreen = ({ onBack }) => {
       await webAuthn.authenticate();
       
       setStatus('Preparing backup...');
-      const { phrase, qrData } = await exportWallet();
+      const { phrase } = await exportWallet();
       setRecoveryPhrase(phrase);
       setMode('phrase');
       setStatus('');
@@ -30,6 +30,30 @@ export const SecurityScreen = ({ onBack }) => {
       setError(error.message);
       setStatus('');
     }
+  };
+
+  const handleCopyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(recoveryPhrase);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      setError('Failed to copy to clipboard');
+    }
+  };
+
+  const handleEmailBackup = () => {
+    const subject = 'Wallet Recovery Phrase Backup';
+    const body = `
+IMPORTANT: Keep this recovery phrase safe and secret!
+
+Your recovery phrase:
+${recoveryPhrase}
+
+DO NOT share this phrase with anyone. Anyone with access to this phrase can access your funds.
+    `.trim();
+
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const handleImport = async () => {
@@ -65,7 +89,7 @@ export const SecurityScreen = ({ onBack }) => {
           </div>
           <div className="text-left">
             <div className="font-medium">Backup Wallet</div>
-            <div className="text-sm text-zinc-500">Export your recovery phrase</div>
+            <div className="text-sm text-zinc-500">Save your recovery phrase</div>
           </div>
         </div>
         <span>→</span>
@@ -95,7 +119,7 @@ export const SecurityScreen = ({ onBack }) => {
       <div className="text-center">
         <h3 className="text-xl font-medium mb-2">Backup Your Wallet</h3>
         <p className="text-zinc-500">
-          You'll receive a 24-word recovery phrase. Keep it safe and never share it with anyone.
+          You'll receive a recovery phrase. Keep it safe and never share it with anyone.
         </p>
       </div>
 
@@ -134,31 +158,35 @@ export const SecurityScreen = ({ onBack }) => {
       <div className="text-center">
         <h3 className="text-xl font-medium mb-2">Recovery Phrase</h3>
         <p className="text-zinc-500">
-          Write these words down in order and keep them safe.
+          Save these words in a secure place.
         </p>
       </div>
 
       <div className="bg-zinc-900 rounded-xl p-4">
-        <div className="grid grid-cols-2 gap-2">
-          {recoveryPhrase.split(' ').map((word, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="text-zinc-500 text-sm">{index + 1}.</span>
-              <span className="font-mono">{word}</span>
-            </div>
-          ))}
-        </div>
+        <pre className="whitespace-pre-wrap break-all font-mono text-sm">
+          {recoveryPhrase}
+        </pre>
       </div>
 
-      <div className="bg-black p-4 rounded-xl">
-        <QRCode
-          value={recoveryPhrase}
-          size={200}
-          level="H"
-          className="w-full"
-        />
-      </div>
+      <div className="space-y-3">
+        <button
+          onClick={handleCopyToClipboard}
+          className="w-full py-4 bg-zinc-900 rounded-xl text-white
+                   transition-all duration-200 hover:bg-zinc-800
+                   active:scale-98"
+        >
+          {copied ? '✓ Copied!' : 'Copy to Clipboard'}
+        </button>
 
-      <div className="space-y-4">
+        <button
+          onClick={handleEmailBackup}
+          className="w-full py-4 bg-zinc-900 rounded-xl text-white
+                   transition-all duration-200 hover:bg-zinc-800
+                   active:scale-98"
+        >
+          Email to Myself
+        </button>
+
         <button
           onClick={() => {
             setShowConfirmation(true);
@@ -178,7 +206,7 @@ export const SecurityScreen = ({ onBack }) => {
       <div className="text-center">
         <h3 className="text-xl font-medium mb-2">Restore Wallet</h3>
         <p className="text-zinc-500">
-          Enter your username and 24-word recovery phrase to restore your wallet.
+          Enter your username and recovery phrase to restore your wallet.
         </p>
       </div>
 
@@ -195,7 +223,7 @@ export const SecurityScreen = ({ onBack }) => {
         <textarea
           value={inputPhrase}
           onChange={(e) => setInputPhrase(e.target.value)}
-          placeholder="Enter recovery phrase..."
+          placeholder="Paste your recovery phrase here..."
           className="w-full h-40 bg-zinc-900 rounded-xl p-4 text-white placeholder-zinc-500
                    outline-none resize-none font-mono"
         />
