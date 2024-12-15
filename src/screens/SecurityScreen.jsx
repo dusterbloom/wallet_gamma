@@ -7,53 +7,44 @@ export const SecurityScreen = ({ onBack }) => {
   const [mode, setMode] = useState('menu');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [recoveryPhrase, setRecoveryPhrase] = useState('');
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [username, setUsername] = useState('');
   const [inputPhrase, setInputPhrase] = useState('');
-  const [copied, setCopied] = useState(false);
-  const { exportWallet, importWallet } = useCosmWallet();
+  const { address, mnemonic } = useCosmWallet();
   const webAuthn = useWebAuthn();
 
-  const handleExport = async () => {
+  const handleBackupToEmail = async () => {
     try {
       setStatus('Verifying identity...');
       await webAuthn.authenticate();
-      
       setStatus('Preparing backup...');
-      const { phrase } = await exportWallet();
-      setRecoveryPhrase(phrase);
-      setMode('phrase');
-      setStatus('');
+
+      const subject = 'Your Wallet Backup - KEEP THIS SAFE!';
+      const body = `
+IMPORTANT: This is your wallet backup. Keep it extremely safe and secret!
+
+Your wallet address:
+${address}
+
+Your recovery phrase (keep this secret and safe!):
+${mnemonic}
+
+SECURITY WARNINGS:
+- Never share this recovery phrase with anyone
+- Store it in a safe place
+- Anyone with access to this phrase can access your funds
+- Cycles will never ask for this phrase
+      `.trim();
+
+      // Create mailto link
+      const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailtoLink;
+
+      setStatus('Backup email prepared');
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error('Backup failed:', error);
       setError(error.message);
       setStatus('');
     }
-  };
-
-  const handleCopyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(recoveryPhrase);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      setError('Failed to copy to clipboard');
-    }
-  };
-
-  const handleEmailBackup = () => {
-    const subject = 'Wallet Recovery Phrase Backup';
-    const body = `
-IMPORTANT: Keep this recovery phrase safe and secret!
-
-Your recovery phrase:
-${recoveryPhrase}
-
-DO NOT share this phrase with anyone. Anyone with access to this phrase can access your funds.
-    `.trim();
-
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const handleImport = async () => {
@@ -79,17 +70,17 @@ DO NOT share this phrase with anyone. Anyone with access to this phrase can acce
   const renderMenu = () => (
     <div className="space-y-4">
       <button
-        onClick={() => setMode('export')}
+        onClick={handleBackupToEmail}
         className="w-full p-4 bg-zinc-900 rounded-xl flex items-center justify-between
                  transition-all duration-200 hover:bg-zinc-800 active:scale-98"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[#FF9500] flex items-center justify-center">
-            <span className="text-xl">📤</span>
+            <span className="text-xl">📧</span>
           </div>
           <div className="text-left">
-            <div className="font-medium">Backup Wallet</div>
-            <div className="text-sm text-zinc-500">Save your recovery phrase</div>
+            <div className="font-medium">Email Backup</div>
+            <div className="text-sm text-zinc-500">Send recovery phrase to your email</div>
           </div>
         </div>
         <span>→</span>
@@ -111,93 +102,6 @@ DO NOT share this phrase with anyone. Anyone with access to this phrase can acce
         </div>
         <span>→</span>
       </button>
-    </div>
-  );
-
-  const renderExport = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-xl font-medium mb-2">Backup Your Wallet</h3>
-        <p className="text-zinc-500">
-          You'll receive a recovery phrase. Keep it safe and never share it with anyone.
-        </p>
-      </div>
-
-      <div className="bg-zinc-900 rounded-xl p-4 space-y-4">
-        <div className="flex items-center gap-3 text-yellow-500">
-          <span className="text-2xl">⚠️</span>
-          <div className="text-sm">
-            Anyone with access to your recovery phrase can access your funds.
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <button
-          onClick={handleExport}
-          className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium
-                   transition-all duration-200 hover:bg-[#FF9500]/90
-                   active:scale-98"
-        >
-          Continue with Passkey
-        </button>
-        <button
-          onClick={() => setMode('menu')}
-          className="w-full py-4 bg-zinc-900 rounded-xl text-white
-                   transition-all duration-200 hover:bg-zinc-800
-                   active:scale-98"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderPhrase = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-xl font-medium mb-2">Recovery Phrase</h3>
-        <p className="text-zinc-500">
-          Save these words in a secure place.
-        </p>
-      </div>
-
-      <div className="bg-zinc-900 rounded-xl p-4">
-        <pre className="whitespace-pre-wrap break-all font-mono text-sm">
-          {recoveryPhrase}
-        </pre>
-      </div>
-
-      <div className="space-y-3">
-        <button
-          onClick={handleCopyToClipboard}
-          className="w-full py-4 bg-zinc-900 rounded-xl text-white
-                   transition-all duration-200 hover:bg-zinc-800
-                   active:scale-98"
-        >
-          {copied ? '✓ Copied!' : 'Copy to Clipboard'}
-        </button>
-
-        <button
-          onClick={handleEmailBackup}
-          className="w-full py-4 bg-zinc-900 rounded-xl text-white
-                   transition-all duration-200 hover:bg-zinc-800
-                   active:scale-98"
-        >
-          Email to Myself
-        </button>
-
-        <button
-          onClick={() => {
-            setShowConfirmation(true);
-          }}
-          className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium
-                   transition-all duration-200 hover:bg-[#FF9500]/90
-                   active:scale-98"
-        >
-          I've Saved My Phrase
-        </button>
-      </div>
     </div>
   );
 
@@ -271,38 +175,7 @@ DO NOT share this phrase with anyone. Anyone with access to this phrase can acce
         )}
 
         {mode === 'menu' && renderMenu()}
-        {mode === 'export' && renderExport()}
-        {mode === 'phrase' && renderPhrase()}
         {mode === 'import' && renderImport()}
-
-        {showConfirmation && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-            <div className="bg-zinc-900 rounded-xl p-6 w-full max-w-md space-y-4">
-              <h3 className="text-xl font-medium text-center">Confirm Backup</h3>
-              <p className="text-zinc-500 text-center">
-                Have you safely stored your recovery phrase?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowConfirmation(false)}
-                  className="flex-1 py-4 bg-zinc-800 rounded-xl"
-                >
-                  No, Go Back
-                </button>
-                <button
-                  onClick={() => {
-                    setShowConfirmation(false);
-                    setMode('menu');
-                    setRecoveryPhrase(''); // Clear the phrase for security
-                  }}
-                  className="flex-1 py-4 bg-[#FF9500] rounded-xl text-black"
-                >
-                  Yes, Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
