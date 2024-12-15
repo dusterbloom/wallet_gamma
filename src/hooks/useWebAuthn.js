@@ -13,24 +13,33 @@ export const useWebAuthn = () => {
 
   const generateAuthKey = async (credential) => {
     try {
-      // Combine credential data for consistent key generation
+      // Convert credential data to bytes
       const rawId = new Uint8Array(credential.rawId);
       const idBytes = new TextEncoder().encode(credential.id);
       
-      // Combine arrays
-      const combined = new Uint8Array(rawId.length + idBytes.length);
-      combined.set(rawId);
-      combined.set(idBytes, rawId.length);
-      
-      // Generate SHA-256 hash
-      const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
-      
-      // Create encryption key from hash
-      const key = await crypto.subtle.importKey(
+      // Create a key derivation salt
+      const salt = new TextEncoder().encode('user-specific-salt');
+
+      // Use PBKDF2 to derive a key
+      const keyMaterial = await crypto.subtle.importKey(
         'raw',
-        hashBuffer,
-        { name: 'AES-GCM', length: 256 },
+        rawId,
+        { name: 'PBKDF2' },
         false,
+        ['deriveBits', 'deriveKey']
+      );
+
+      // Derive the actual encryption key
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        true,
         ['encrypt', 'decrypt']
       );
       
@@ -109,8 +118,7 @@ export const useWebAuthn = () => {
         challenge,
         rpId: domain,
         timeout: 60000,
-        userVerification: "preferred",
-        attestation: "none"
+        userVerification: "preferred"
       };
 
       console.log('Attempting to get credential with options:', publicKeyCredentialRequestOptions);
