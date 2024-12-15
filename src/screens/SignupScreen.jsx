@@ -6,25 +6,28 @@ import { useCosmWallet } from '../hooks/useCosmWallet.js';
 export const SignupScreen = ({ onComplete }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
   const webAuthn = useWebAuthn();
   const { setupNewWallet } = useCosmWallet();
 
   const handleSubmit = async () => {
     try {
-      // First register with WebAuthn
+      setStatus('Creating passkey...');
       const { authKey } = await webAuthn.register(username);
       
-      // Then setup the Cosmos wallet
+      setStatus('Generating wallet...');
       const { success, address, error } = await setupNewWallet(username, authKey);
       
       if (!success) {
         throw new Error(error || 'Failed to setup wallet');
       }
 
+      setStatus('Success!');
       onComplete({ username, address });
     } catch (error) {
       console.error('Registration failed:', error);
       setError(error.message);
+      setStatus('');
     }
   };
 
@@ -48,6 +51,12 @@ export const SignupScreen = ({ onComplete }) => {
                      outline-none text-center text-xl"
             autoFocus
           />
+
+          {status && (
+            <div className="text-center text-sm text-zinc-400">
+              {status}
+            </div>
+          )}
 
           {error && (
             <div className="text-red-500 text-center text-sm">
