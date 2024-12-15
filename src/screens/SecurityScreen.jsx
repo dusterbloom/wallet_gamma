@@ -18,10 +18,10 @@ export const SecurityScreen = ({ onBack }) => {
   const handleExport = async () => {
     try {
       setStatus('Verifying identity...');
-      const { authKey } = await webAuthn.authenticate();
+      await webAuthn.authenticate();
       
       setStatus('Preparing backup...');
-      const { phrase, qrData } = await exportWallet(authKey);
+      const { phrase, qrData } = await exportWallet();
       setRecoveryPhrase(phrase);
       setMode('phrase');
       setStatus('');
@@ -162,7 +162,6 @@ export const SecurityScreen = ({ onBack }) => {
         <button
           onClick={() => {
             setShowConfirmation(true);
-            setRecoveryPhrase('');
           }}
           className="w-full py-4 bg-[#FF9500] rounded-xl text-black font-medium
                    transition-all duration-200 hover:bg-[#FF9500]/90
@@ -198,7 +197,7 @@ export const SecurityScreen = ({ onBack }) => {
           onChange={(e) => setInputPhrase(e.target.value)}
           placeholder="Enter recovery phrase..."
           className="w-full h-40 bg-zinc-900 rounded-xl p-4 text-white placeholder-zinc-500
-                   outline-none resize-none"
+                   outline-none resize-none font-mono"
         />
 
         <button
@@ -230,7 +229,7 @@ export const SecurityScreen = ({ onBack }) => {
         onBack={onBack}
       />
       
-      <div className="flex-1 p-4">
+      <div className="flex-1 p-4 overflow-y-auto">
         {status && (
           <div className="text-center text-sm text-zinc-400 mb-4">
             {status}
@@ -249,7 +248,7 @@ export const SecurityScreen = ({ onBack }) => {
         {mode === 'import' && renderImport()}
 
         {showConfirmation && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
             <div className="bg-zinc-900 rounded-xl p-6 w-full max-w-md space-y-4">
               <h3 className="text-xl font-medium text-center">Confirm Backup</h3>
               <p className="text-zinc-500 text-center">
@@ -266,6 +265,7 @@ export const SecurityScreen = ({ onBack }) => {
                   onClick={() => {
                     setShowConfirmation(false);
                     setMode('menu');
+                    setRecoveryPhrase(''); // Clear the phrase for security
                   }}
                   className="flex-1 py-4 bg-[#FF9500] rounded-xl text-black"
                 >

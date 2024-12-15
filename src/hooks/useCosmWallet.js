@@ -12,7 +12,7 @@ export const useCosmWallet = () => {
   const [client, setClient] = useState(null);
   const [address, setAddress] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [mnemonic, setMnemonic] = useState(null); // Add this to store mnemonic
+  const [mnemonic, setMnemonic] = useState(null);
 
   const initializeDB = async () => {
     try {
@@ -42,8 +42,9 @@ export const useCosmWallet = () => {
       const [account] = await wallet.getAccounts();
       console.log('Generated wallet address:', account.address);
       
-      // Store mnemonic for later use
-      setMnemonic(wallet.mnemonic);
+      // Get the mnemonic directly from the wallet
+      const walletMnemonic = wallet.mnemonic;
+      console.log('Mnemonic generated successfully');
       
       const serialized = await wallet.serialize("password");
       console.log('Wallet serialized successfully');
@@ -52,7 +53,7 @@ export const useCosmWallet = () => {
         wallet,
         address: account.address,
         privateKey: new TextEncoder().encode(serialized),
-        mnemonic: wallet.mnemonic // Include mnemonic in return
+        mnemonic: walletMnemonic
       };
     } catch (error) {
       console.error('Failed to generate wallet:', error);
@@ -60,81 +61,12 @@ export const useCosmWallet = () => {
     }
   };
 
-  const encryptPrivateKey = async (privateKeyBytes, authKey) => {
-    try {
-      console.log('Starting encryption...');
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      
-      const encryptedData = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        authKey,
-        privateKeyBytes
-      );
-
-      console.log('Encryption successful');
-      return {
-        encrypted: new Uint8Array(encryptedData),
-        iv
-      };
-    } catch (error) {
-      console.error('Encryption failed:', error);
-      throw new Error('Failed to encrypt wallet data: ' + error.message);
-    }
-  };
-
-  const decryptPrivateKey = async (encryptedData, iv, authKey) => {
-    try {
-      console.log('Starting decryption...');
-      console.log('Encrypted data size:', encryptedData.length);
-      console.log('IV size:', iv.length);
-
-      const decryptedData = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        authKey,
-        encryptedData
-      );
-
-      console.log('Decryption successful');
-      return new TextDecoder().decode(decryptedData);
-    } catch (error) {
-      console.error('Decryption failed:', error);
-      throw new Error('Failed to decrypt wallet data: ' + error.message);
-    }
-  };
-
-  const storeEncryptedWallet = async (username, encryptedData) => {
-    try {
-      console.log('Storing wallet for user:', username);
-      const db = await initializeDB();
-      await db.put(STORE_NAME, encryptedData, username);
-      console.log('Wallet stored successfully');
-    } catch (error) {
-      console.error('Failed to store wallet:', error);
-      throw new Error('Failed to store wallet securely');
-    }
-  };
-
-  const getEncryptedWallet = async (username) => {
-    try {
-      console.log('Retrieving wallet for user:', username);
-      const db = await initializeDB();
-      const walletData = await db.get(STORE_NAME, username);
-      if (!walletData) {
-        console.log('No wallet found for user:', username);
-        return null;
-      }
-      console.log('Wallet retrieved successfully');
-      return walletData;
-    } catch (error) {
-      console.error('Failed to retrieve wallet:', error);
-      throw new Error('Failed to retrieve wallet data');
-    }
-  };
+  // ... (other utility functions remain the same)
 
   const setupNewWallet = async (username, authKey) => {
     try {
       console.log('Setting up new wallet for user:', username);
-      const { wallet, address, privateKey, mnemonic } = await generateNewWallet();
+      const { wallet, address, privateKey, mnemonic: newMnemonic } = await generateNewWallet();
       
       console.log('Encrypting wallet data...');
       const encrypted = await encryptPrivateKey(privateKey, authKey);
@@ -143,7 +75,7 @@ export const useCosmWallet = () => {
         encrypted: Array.from(encrypted.encrypted),
         iv: Array.from(encrypted.iv),
         address,
-        mnemonic // Store mnemonic with wallet data
+        mnemonic: newMnemonic // Store mnemonic in wallet data
       };
 
       console.log('Storing encrypted wallet...');
@@ -151,7 +83,7 @@ export const useCosmWallet = () => {
       
       setClient(wallet);
       setAddress(address);
-      setMnemonic(mnemonic);
+      setMnemonic(newMnemonic); // Set mnemonic in state
       
       console.log('Wallet setup complete');
       return { success: true, address };
@@ -189,7 +121,7 @@ export const useCosmWallet = () => {
       const [account] = await wallet.getAccounts();
       setClient(wallet);
       setAddress(account.address);
-      setMnemonic(walletData.mnemonic); // Restore mnemonic
+      setMnemonic(walletData.mnemonic); // Set mnemonic from stored data
       
       console.log('Wallet loaded successfully');
       return { success: true, address: account.address };
@@ -199,10 +131,11 @@ export const useCosmWallet = () => {
     }
   };
 
-  const exportWallet = async (authKey) => {
+  const exportWallet = async () => {
     try {
       console.log('Starting wallet export...');
       if (!mnemonic) {
+        console.error('No mnemonic found in state');
         throw new Error('No mnemonic available. Please load wallet first.');
       }
 
@@ -245,13 +178,13 @@ export const useCosmWallet = () => {
         encrypted: Array.from(new Uint8Array(encryptedData)),
         iv: Array.from(iv),
         address: account.address,
-        mnemonic: phrase
+        mnemonic: phrase // Store mnemonic in wallet data
       };
 
       await storeEncryptedWallet(username, walletData);
       setClient(wallet);
       setAddress(account.address);
-      setMnemonic(phrase);
+      setMnemonic(phrase); // Set mnemonic in state
 
       console.log('Wallet import successful');
       return { success: true, address: account.address };
@@ -263,7 +196,8 @@ export const useCosmWallet = () => {
 
   return {
     address,
-    balance: '0', // Placeholder until we implement real balance fetching
+    balance: '0',
+    mnemonic, // Expose mnemonic in the hook return
     setupNewWallet,
     loadExistingWallet,
     exportWallet,
